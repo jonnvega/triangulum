@@ -236,6 +236,6 @@
      (let [user-handler (-> (get-config :server :handler)
                             resolve-foreign-symbol)]
        (user-handler request)))
-   false         ;; SSL disabled in development
-   true          ;; Reload enabled in development
-   #{}))         ;; Empty set for allowed origins
+   false
+   true
+   #{}))
