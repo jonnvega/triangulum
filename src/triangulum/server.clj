@@ -30,6 +30,7 @@
 (s/def ::keystore-file     ::config/string)
 (s/def ::keystore-type     ::config/string)
 (s/def ::keystore-password ::config/string)
+(s/def ::allowed-origins   (s/coll-of ::config/string :kind set? :min-count 0))
 
 ;; state
 
@@ -45,7 +46,8 @@
 (defn start-server!
   "See README.org -> Web Framework -> triangulum.server for details."
   [{:keys [http-port https-port nrepl cider-nrepl nrepl-bind nrepl-port mode log-dir
-           truncate-request? handler workers keystore-file keystore-type keystore-password]
+           truncate-request? handler workers keystore-file keystore-type keystore-password
+           allowed-origins]
     :or   {nrepl-bind        "127.0.0.1"
            nrepl-port        5555
            keystore-file     "./.key/keystore.pkcs12"
@@ -58,7 +60,7 @@
         ssl?          (and has-key? https-port)
         reload?       (= mode "dev")
         handler-stack (-> (resolve-foreign-symbol handler)
-                          (create-handler-stack ssl? reload?))
+                          (create-handler-stack ssl? reload? allowed-origins))
         config        (merge
                        {:port  http-port
                         :join? false

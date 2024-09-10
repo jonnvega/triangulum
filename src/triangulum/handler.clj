@@ -80,6 +80,22 @@
         (forbidden-response request)
         (handler request)))))
 
+(defn wrap-cors
+  "Allow requests from specified origins - also check preflight"
+  [handler]
+  (fn [request]
+    (let [origin (get-in request [:headers "origin"])
+          allowed-origins (get-config :server :allowed-origins)
+          cors-headers {"Access-Control-Allow-Origin"  (if (some #{origin} allowed-origins) origin "null")
+                        "Access-Control-Allow-Headers" "*"
+                        "Access-Control-Allow-Methods" "GET"}]
+      (if (= (request :request-method) :options)
+        {:status 200
+         :headers cors-headers
+         :body "preflight complete"}
+        (let [response (handler request)]
+          (update-in response [:headers] merge cors-headers))))))
+
 (defn wrap-request-logging
   "Wrapper that logs the incoming requests."
   [handler]
@@ -187,11 +203,12 @@
 
 (defn create-handler-stack
   "Create the Ring handler stack."
-  [routing-handler ssl? reload?]
+  [routing-handler ssl? reload? allowed-origins]
   (-> routing-handler
       (optional-middleware wrap-ssl-redirect ssl?)
       wrap-bad-uri
       wrap-request-logging
+      (optional-middleware wrap-cors allowed-origins)
       wrap-keyword-params
       wrap-json-params
       wrap-edn-params
@@ -219,5 +236,6 @@
      (let [user-handler (-> (get-config :server :handler)
                             resolve-foreign-symbol)]
        (user-handler request)))
-   false
-   true))
+   false         ;; SSL disabled in development
+   true          ;; Reload enabled in development
+   #{}))         ;; Empty set for allowed origins
